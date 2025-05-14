@@ -34,7 +34,7 @@ class ThirdIntroPage extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 24.0),
         child: Column(
           children: [
-            const SizedBox(height: 24),
+            const SizedBox(height: 60),
             Image.asset(
               'assets/images/logo.png',
               height: 40,
@@ -61,7 +61,7 @@ class ThirdIntroPage extends StatelessWidget {
             const SizedBox(height: 24),
             Image.asset(
               'assets/images/join_illustration.png',
-              height: 400,
+              height: 300,
             ),
             const Spacer(),
             SizedBox(

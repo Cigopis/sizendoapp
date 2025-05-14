@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:sizendoapp/presentation/pages/auth/login_page.dart';
 import 'package:sizendoapp/presentation/pages/auth/register_page.dart';
 import 'package:sizendoapp/presentation/pages/splash/intro_splash.dart';
 import 'package:sizendoapp/presentation/pages/splash/splash_screen.dart';
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+  SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky); 
   runApp(
     MaterialApp(
       debugShowCheckedModeBanner: false,
@@ -12,7 +15,7 @@ void main() {
       routes: {
         '/register': (context) => RegisterPage(),
         '/login': (context) => LoginPage(),
-        '/intro' :(context) => IntroSplashPage()
+        '/intro': (context) => IntroSplashPage(),
       },
     ),
   );

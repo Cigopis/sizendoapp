@@ -29,11 +29,12 @@ class SecondIntroPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SafeArea(
-      child: Padding(
+      child: SingleChildScrollView(
+        child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 24.0),
         child: Column(
           children: [
-            const SizedBox(height: 24),
+            const SizedBox(height: 80),
             Image.asset(
               'assets/images/logo.png',
               height: 40,
@@ -69,6 +70,7 @@ class SecondIntroPage extends StatelessWidget {
           ],
         ),
       ),
+      )
     );
   }
 }

@@ -5,19 +5,19 @@ import 'profile_screen.dart';
 
 class Navbar extends StatefulWidget {
   final String userEmail;
-  const Navbar({super.key, required this.userEmail});
+  const Navbar({Key? key, required this.userEmail}) : super(key: key);
 
   @override
   State<Navbar> createState() => _NavbarState();
 }
 
-  class _NavbarState extends State<Navbar> {
+class _NavbarState extends State<Navbar> {
   int _selectedIndex = 0;
 
   List<Widget> get _pages => [
     const HomeScreen(),
     const SearchScreen(),
-    ProfileScreen(userEmail: widget.userEmail), // kirim email ke Profile
+    ProfileScreen(userEmail: widget.userEmail), // Kirim hanya userEmail ke ProfileScreen
   ];
 
   void _onItemTapped(int index) {
