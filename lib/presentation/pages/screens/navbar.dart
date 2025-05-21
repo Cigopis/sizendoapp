@@ -2,10 +2,11 @@ import 'package:flutter/material.dart';
 import 'home_screen.dart';
 import 'search_screen.dart';
 import 'profile_screen.dart';
-
+import 'package:sizendoapp/data/services/api_service.dart';
+import 'package:sizendoapp/data/models/post.dart';
 class Navbar extends StatefulWidget {
   final String userEmail;
-  const Navbar({Key? key, required this.userEmail}) : super(key: key);
+  const Navbar({super.key, required this.userEmail});
 
   @override
   State<Navbar> createState() => _NavbarState();
@@ -13,23 +14,37 @@ class Navbar extends StatefulWidget {
 
 class _NavbarState extends State<Navbar> {
   int _selectedIndex = 0;
+  List<PostModel> posts = []; 
+  bool isLoading = true;
 
-  List<Widget> get _pages => [
-    const HomeScreen(),
-    const SearchScreen(),
-    ProfileScreen(userEmail: widget.userEmail), // Kirim hanya userEmail ke ProfileScreen
-  ];
+  @override
+  void initState() {
+    super.initState();
+    loadPosts();
+  }
 
-  void _onItemTapped(int index) {
-    setState(() {
-      _selectedIndex = index;
-    });
+  Future<void> loadPosts() async {
+    try {
+      final result = await ApiService.fetchPosts();
+      setState(() {
+        posts = result;
+        isLoading = false;
+      });
+    } catch (e) {
+      print('Error loading posts: $e');
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final List<Widget> pages = [
+      const HomeScreen(),
+      const SearchScreen(),
+      ProfileScreen(userEmail: widget.userEmail),
+    ];
+
     return Scaffold(
-      body: _pages[_selectedIndex],
+      body: pages[_selectedIndex],
       bottomNavigationBar: BottomNavigationBar(
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
@@ -38,7 +53,11 @@ class _NavbarState extends State<Navbar> {
         ],
         currentIndex: _selectedIndex,
         selectedItemColor: Colors.blue,
-        onTap: _onItemTapped,
+        onTap: (index) {
+          setState(() {
+            _selectedIndex = index;
+          });
+        },
       ),
     );
   }

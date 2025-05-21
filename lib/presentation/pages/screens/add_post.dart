@@ -1,7 +1,9 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class AddPostScreen extends StatefulWidget {
   const AddPostScreen({super.key});
@@ -11,15 +13,92 @@ class AddPostScreen extends StatefulWidget {
 }
 
 class _AddPostScreenState extends State<AddPostScreen> {
-  final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _contentController = TextEditingController();
   File? _imageFile;
   bool isLoading = false;
+  String? namaMember;
+  String? userEmail;
 
-  // Memilih gambar dari galeri
-  Future<void> pickImage() async {
+  @override
+  void initState() {
+    super.initState();
+    _loadUserData();
+  }
+
+  Future<void> _loadUserData() async {
+    final prefs = await SharedPreferences.getInstance();
+    final email = prefs.getString('user_email');
+    if (email != null) {
+      setState(() {
+        userEmail = email;
+      });
+      await fetchNamaMember(email);
+    } else {
+      setState(() {
+        namaMember = null;
+      });
+    }
+  }
+
+  Future<void> fetchNamaMember(String email) async {
+    final url = Uri.parse('https://siberzendo.com/api_login.php');
+    final response = await http.post(url, body: {'email': email});
+
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      if (data['success']) {
+        setState(() {
+          namaMember = data['data']['nama_member'] ?? "Tidak ada nama";
+        });
+      } else {
+        setState(() {
+          namaMember = null;
+        });
+      }
+    } else {
+      setState(() {
+        namaMember = null;
+      });
+    }
+  }
+
+  Future<void> _pickImage() async {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (_) {
+        return SafeArea(
+          child: Wrap(
+            children: [
+              ListTile(
+                leading: const Icon(Icons.camera_alt),
+                title: const Text('Ambil dari Kamera'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _getImageFromSource(ImageSource.camera);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.image),
+                title: const Text('Pilih dari Galeri'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _getImageFromSource(ImageSource.gallery);
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _getImageFromSource(ImageSource source) async {
     final picker = ImagePicker();
-    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
+    final pickedFile = await picker.pickImage(source: source);
+
     if (pickedFile != null) {
       setState(() {
         _imageFile = File(pickedFile.path);
@@ -27,12 +106,12 @@ class _AddPostScreenState extends State<AddPostScreen> {
     }
   }
 
-  // Mengirim postingan ke server
   Future<void> submitPost() async {
-    if (_imageFile == null) {
-      if (!mounted) return;
+    final content = _contentController.text.trim();
+
+    if (namaMember == null || content.isEmpty || _imageFile == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Pilih gambar terlebih dahulu")),
+        const SnackBar(content: Text("Isi postingan dan gambar wajib diisi")),
       );
       return;
     }
@@ -46,37 +125,29 @@ class _AddPostScreenState extends State<AddPostScreen> {
         "POST",
         Uri.parse("https://siberzendo.com/add_post.php"),
       );
-      request.fields['username'] = _usernameController.text;
-      request.fields['content'] = _contentController.text;
+      request.fields['username'] = namaMember!;
+      request.fields['content'] = content;
 
-      // Mengirim file gambar
-      final imageFile = await http.MultipartFile.fromPath(
-        'image',
-        _imageFile!.path,
-      );
+      final imageFile = await http.MultipartFile.fromPath('image', _imageFile!.path);
       request.files.add(imageFile);
 
       final response = await request.send();
-
-      if (!mounted) return;
 
       setState(() {
         isLoading = false;
       });
 
-      // Menangani respons dari server
       if (response.statusCode == 200) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Post berhasil dikirim")),
         );
-        Navigator.pop(context);  // Kembali ke layar sebelumnya
+        Navigator.pop(context);
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Gagal mengirim post")),
         );
       }
     } catch (e) {
-      if (!mounted) return;
       setState(() {
         isLoading = false;
       });
@@ -87,61 +158,106 @@ class _AddPostScreenState extends State<AddPostScreen> {
   }
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text("Tambah Postingan")),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Input Username
-              TextField(
-                controller: _usernameController,
-                decoration: const InputDecoration(labelText: "Username"),
-              ),
-              const SizedBox(height: 10),
-              // Input Content
-              TextField(
-                controller: _contentController,
-                decoration: const InputDecoration(labelText: "Isi Postingan"),
-                maxLines: 4,
-              ),
-              const SizedBox(height: 10),
-              // Tombol Pilih Gambar
-              ElevatedButton.icon(
-                onPressed: pickImage,
-                icon: const Icon(Icons.image),
-                label: const Text("Pilih Gambar"),
-              ),
-              // Menampilkan gambar yang dipilih
-              if (_imageFile != null) ...[
-                const SizedBox(height: 10),
-                Image.file(_imageFile!, height: 150),
-              ],
-              const SizedBox(height: 20),
-              // Menampilkan tombol Kirim Postingan atau loading indicator
-              isLoading
-                  ? const Center(child: CircularProgressIndicator())
-                  : SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: submitPost,
-                        child: const Text("Kirim Postingan"),
-                      ),
-                    ),
-            ],
-          ),
-        ),
-      ),
-    );
+  void dispose() {
+    _contentController.dispose();
+    super.dispose();
   }
 
   @override
-  void dispose() {
-    _usernameController.dispose();
-    _contentController.dispose();
-    super.dispose();
+  Widget build(BuildContext context) {
+    final Color primaryBlue = const Color(0xFF0D0D8D);
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text("Tambah Postingan"),
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black,
+      ),
+      body: namaMember == null
+          ? const Center(child: CircularProgressIndicator())
+          : Padding(
+              padding: const EdgeInsets.all(16),
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      "Sebagai: $namaMember",
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: _contentController,
+                      maxLines: 4,
+                      decoration: InputDecoration(
+                        labelText: "Isi Postingan",
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    _imageFile == null
+                        ? imagePickerButton()
+                        : Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              SizedBox(
+                                height: 180,
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: Image.file(_imageFile!, fit: BoxFit.cover),
+                                ),
+                              ),
+                              TextButton.icon(
+                                onPressed: _pickImage,
+                                icon: const Icon(Icons.edit),
+                                label: const Text("Ubah Gambar"),
+                              ),
+                            ],
+                          ),
+                    const SizedBox(height: 24),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: isLoading ? null : submitPost,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: primaryBlue,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        child: isLoading
+                            ? const SizedBox(
+                                width: 24,
+                                height: 24,
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 3,
+                                ),
+                              )
+                            : const Text(
+                                "Kirim Postingan",
+                                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                              ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+    );
+  }
+
+  Widget imagePickerButton() {
+    return SizedBox(
+      width: double.infinity,
+      child: OutlinedButton.icon(
+        onPressed: _pickImage,
+        icon: const Icon(Icons.image),
+        label: const Text("Pilih Gambar"),
+        style: OutlinedButton.styleFrom(
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      ),
+    );
   }
 }

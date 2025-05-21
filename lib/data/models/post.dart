@@ -3,13 +3,19 @@ class PostModel {
   final String content;
   final String? image;
 
-  PostModel({required this.username, required this.content, this.image});
+  PostModel({
+    required this.username,
+    required this.content,
+    this.image,
+  });
 
   factory PostModel.fromJson(Map<String, dynamic> json) {
     return PostModel(
       username: json['username'],
       content: json['content'],
-      image: json['image'],
+      image: json['image_path'] != null
+          ? 'https://siberzendo.com/${json['image_path']}'
+          : null,
     );
   }
 }
